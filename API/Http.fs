@@ -109,7 +109,7 @@ module Http =
         | Ok value -> Ok value // TODO what if value is null?
         | Error s -> failwith ""
 
-    let parse<'t> (response : HttpResponseMessage) =
+    let private parse<'t> (response : HttpResponseMessage) =
         if response.IsSuccessStatusCode then
             deserialize<'t> response.Content
         else

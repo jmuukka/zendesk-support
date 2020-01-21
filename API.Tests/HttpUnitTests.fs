@@ -74,7 +74,7 @@ let ``getArray with many pages then data of all pages received`` () =
         failwith "Error"
 
 [<Fact>]
-let ``getArray with many pages then pages consumed expected pages requested`` () =
+let ``getArray with many pages then pages consumed and expected pages requested`` () =
     let firstPage, nextPages, queue, uris, send = ``arrange for getArray``()
 
     Http.getArray<ItemsModel, Item> send context (fun model -> model.items) firstPage
