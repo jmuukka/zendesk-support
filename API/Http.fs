@@ -141,10 +141,10 @@ module Http =
                 Error err
             | Ok page ->
                 let elements = inner page
-                let acc = Array.append acc elements
+                let acc' = Array.append acc elements
                 if page.next_page = null then
-                    Ok acc
+                    Ok acc'
                 else
-                    get page.next_page acc
+                    get page.next_page acc'
 
         get requestUri [||]
