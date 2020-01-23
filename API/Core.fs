@@ -26,7 +26,7 @@ type Context = {
 
 [<NoComparison>]
 type Failure =
-| StatusCode of HttpStatusCode
+| StatusCode of HttpStatusCode * string // The response status code and the content.
 | ParseError of string * exn // The content that we could not parse and an exception.
 | Exception of exn
 

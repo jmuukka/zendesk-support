@@ -79,7 +79,7 @@ let ``get returns expected model when send succeeds`` () =
 
 [<Fact>]
 let ``get returns HTTP NotFound Error when send fails`` () =
-    let notFound = StatusCode HttpStatusCode.NotFound
+    let notFound = StatusCode (HttpStatusCode.NotFound, "this is the content of the response")
     let send ctx createReq = Error notFound
             
     let actual = Http.get send context getItem "https://...will be ignored"

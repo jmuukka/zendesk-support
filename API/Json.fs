@@ -12,4 +12,4 @@ module Json =
             JsonConvert.DeserializeObject<'t>(json)
             |> Ok
         with ex ->
-            Error ex
+            Error (json, ex)

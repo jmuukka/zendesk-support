@@ -77,7 +77,7 @@ module Http =
                 tryCount >= maxRetryCount
 
             match failure with
-            | StatusCode code when code >= HttpStatusCode.InternalServerError ->
+            | StatusCode (code, _) when code >= HttpStatusCode.InternalServerError ->
                 trueWhenShouldNotRetry
             | StatusCode _ ->
                 // HttpStatusCodes less than 500 are considered permanent.
@@ -104,25 +104,24 @@ module Http =
 
         sendRec 1 firstWaitTimeInSeconds
 
-    let private deserialize<'t> (content : HttpContent) =
-        let raw =
-            content.ReadAsStringAsync() // Hopefully the position in the stream is at the beginning when this is called.
-            |> Async.AwaitTask
-            |> Async.RunSynchronously
+    let private read (content : HttpContent) =
+        content.ReadAsStringAsync() // Hopefully the position in the stream is at the beginning when this is called.
+        |> Async.AwaitTask
+        |> Async.RunSynchronously
 
-        let value =
-            raw
-            |> Json.deserialize<'t>
+    let private deserialize<'t> (content : string) =
+        let result = Json.deserialize<'t> content
 
-        match value with
+        match result with
         | Ok value -> Ok value
-        | Error ex -> Error (ParseError (raw, ex))
+        | Error (json, ex) -> Error (ParseError (json, ex))
 
     let private parse<'t> (response : HttpResponseMessage) =
+        let content = read response.Content
         if response.IsSuccessStatusCode then
-            deserialize<'t> response.Content
+            deserialize<'t> content
         else
-            Error (StatusCode response.StatusCode)
+            Error (StatusCode (response.StatusCode, content))
 
     let get<'a, 'b> (send : HttpSend) context (inner : 'a -> 'b) requestUri =
 
