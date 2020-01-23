@@ -80,6 +80,12 @@ module Http =
             | StatusCode code when code >= HttpStatusCode.InternalServerError ->
                 trueWhenShouldNotRetry
             | StatusCode _ ->
+                // HttpStatusCodes less than 500 are considered permanent.
+                // 429 at least is an exception to this, as it instructs to try again after a delay.
+                // Function sendWithRetryWhenTooManyRequests can be used to handle this case.
+                true
+            | ParseError _ ->
+                // We will expect that it's a permanent error.
                 true
             | Exception _ ->
                 trueWhenShouldNotRetry
@@ -99,15 +105,18 @@ module Http =
         sendRec 1 firstWaitTimeInSeconds
 
     let private deserialize<'t> (content : HttpContent) =
-        let value =
+        let raw =
             content.ReadAsStringAsync() // Hopefully the position in the stream is at the beginning when this is called.
             |> Async.AwaitTask
             |> Async.RunSynchronously
+
+        let value =
+            raw
             |> Json.deserialize<'t>
 
         match value with
-        | Ok value -> Ok value // TODO what if value is null?
-        | Error s -> failwith ""
+        | Ok value -> Ok value
+        | Error ex -> Error (ParseError (raw, ex))
 
     let private parse<'t> (response : HttpResponseMessage) =
         if response.IsSuccessStatusCode then

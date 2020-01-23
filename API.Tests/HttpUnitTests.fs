@@ -20,10 +20,19 @@ type Item = {
     id : int
 }
 
+type ItemModel = {
+    item : Item
+}
+
 type ItemsModel() =
     inherit PagedModel()
 
     member val items : Item array = null with get, set
+
+let createItemModel id =
+    {
+        item = {id = id}
+    }
 
 let createItemsModel id next =
     let model = ItemsModel()
@@ -41,11 +50,75 @@ let createQueue uris =
     uris |> List.iter enqueue
     queue
 
-let createResponse items =
-    let content = Json.serialize items
+let createResponse model =
+    let json = Json.serialize model
     let response = new HttpResponseMessage(HttpStatusCode.OK)
-    response.Content <- new StringContent(content, System.Text.Encoding.UTF8, "application/json")
+    response.Content <- new StringContent(json, System.Text.Encoding.UTF8, "application/json")
     response
+
+// ------------------------------------------------------------
+// get
+// ------------------------------------------------------------
+
+let getItem (model : ItemModel) = model.item
+
+[<Fact>]
+let ``get returns expected model when send succeeds`` () =
+    let send ctx createReq =
+        createItemModel 1
+        |> createResponse
+        |> Ok
+            
+    let actual = Http.get send context getItem "https://...will be ignored"
+
+    match actual with
+    | Ok item ->
+        Assert.equals {id=1} item
+    | _ ->
+        failwith "Error"
+
+[<Fact>]
+let ``get returns HTTP NotFound Error when send fails`` () =
+    let notFound = StatusCode HttpStatusCode.NotFound
+    let send ctx createReq = Error notFound
+            
+    let actual = Http.get send context getItem "https://...will be ignored"
+
+    match actual with
+    | Ok _ ->
+        failwith "Why Ok? Should be Error!"
+    | Error failure ->
+        Assert.equals notFound failure
+
+[<Fact>]
+let ``get returns ParseError when server returns HTML page`` () =
+    let responseText = "<html>...</html>"
+    let createResponse text =
+        let response = new HttpResponseMessage(HttpStatusCode.OK)
+        // Sometimes they lie that the response is JSON even though it's an HTML error page.
+        response.Content <- new StringContent(text, System.Text.Encoding.UTF8, "application/json")
+        response
+        
+    let send ctx createReq =
+        responseText
+        |> createResponse
+        |> Ok
+            
+    let actual = Http.get send context getItem "https://...will be ignored"
+
+    match actual with
+    | Ok _ ->
+        failwith "Why Ok? Should be Error!"
+    | Error failure ->
+        match failure with
+        | ParseError (html, _) ->
+            Assert.equals responseText html
+        | _ ->
+            failwith "ParseError was expected!"
+
+// ------------------------------------------------------------
+// getArray
+// ------------------------------------------------------------
 
 let ``arrange for getArray`` () =
     let firstPage = "http://api/"
@@ -65,23 +138,25 @@ let ``arrange for getArray`` () =
 
 let getArray = Http.getArray<ItemsModel, Item>
 
+let getItems (model : ItemsModel) = model.items
+
 [<Fact>]
 let ``getArray with many pages then data of all pages received`` () =
     let firstPage, _, _, _, send = ``arrange for getArray``()
 
-    let actual = getArray send context (fun model -> model.items) firstPage
+    let actual = getArray send context getItems firstPage
 
     match actual with
     | Ok items ->
         Assert.equals [|{id=1}; {id=2}; {id=3}|] items
     | _ ->
-        failwith "Error"
+        failwith "Why Error? Should be Ok!"
 
 [<Fact>]
 let ``getArray with many pages then pages consumed and expected pages requested`` () =
     let firstPage, nextPages, queue, uris, send = ``arrange for getArray``()
 
-    getArray send context (fun model -> model.items) firstPage
+    getArray send context getItems firstPage
     |> ignore
 
     Assert.equals 0 queue.Count
