@@ -29,6 +29,7 @@ type Failure =
 | StatusCode of HttpStatusCode * string // The response status code and the content.
 | ParseError of string * exn // The content that we could not parse and an exception.
 | Exception of exn
+| CustomError of string
 
 type CreateRequest = Context -> HttpRequestMessage
 

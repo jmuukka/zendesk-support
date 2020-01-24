@@ -87,6 +87,9 @@ module Http =
             | ParseError _ ->
                 // We will expect that it's a permanent error.
                 true
+            | CustomError _ ->
+                // We will expect that it's a permanent error.
+                true
             | Exception _ ->
                 trueWhenShouldNotRetry
 

@@ -57,7 +57,7 @@ module Organization =
     let private mapArray (model : OrganizationsModel) = model.organizations
 
     let getAll send context =
-        sprintf "/api/v2/organizations.json"
+        "/api/v2/organizations.json"
         |> getArray send context mapArray
 
     let get send context (id : OrganizationId) =
@@ -71,3 +71,20 @@ module Organization =
     let getByExternalId send context externalId =
         sprintf "/api/v2/organizations/search.json?external_id=%s" externalId
         |> getArray send context mapArray
+
+    let tryGetByExternalId send context externalId =
+        let result = getByExternalId send context externalId
+        match result with
+        | Ok [||] ->
+            Ok None
+        | Ok [|org|] ->
+            Ok (Some org)
+        | Ok orgs ->
+            orgs
+            |> Array.map (fun org -> org.name)
+            |> String.concat ", "
+            |> sprintf "More than one organization found with external id '%s': %s." externalId
+            |> CustomError
+            |> Error
+        | Error err ->
+            Error err
