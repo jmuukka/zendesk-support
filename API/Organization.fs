@@ -8,6 +8,20 @@ type ExternalId = string
 type GroupId = int64
 
 [<NoComparison>]
+type NewOrganization = {
+    name : string
+    shared_tickets : bool
+    shared_comments : bool
+    external_id : ExternalId // May be null.
+    domain_names : string array // May be null.
+    details : string // May be null.
+    notes : string // May be null.
+    group_id : Nullable<GroupId>
+    tags : string array // May be null.
+    organization_fields : IDictionary<string, obj> // May be null.
+}
+
+[<NoComparison>]
 type Organization = {
     url : string
     id : OrganizationId
@@ -35,29 +49,20 @@ type OrganizationsModel() =
 
     member val organizations : Organization array = null with get, set
 
-[<NoComparison>]
-type NewOrganization = {
-    name : string
-    shared_tickets : bool
-    shared_comments : bool
-    external_id : ExternalId // May be null.
-    domain_names : string array // May be null.
-    details : string // May be null.
-    notes : string // May be null.
-    group_id : Nullable<GroupId>
-    tags : string array // May be null.
-    organization_fields : IDictionary<string, obj> // May be null.
-}
-
 module Organization =
+
+    let private getOne = Http.get<OrganizationModel, Organization>
+    let private getArray = Http.getArray<OrganizationsModel, Organization>
+    let private mapOne model = model.organization
+    let private mapArray (model : OrganizationsModel) = model.organizations
 
     let getAll send context =
         sprintf "/api/v2/organizations.json"
-        |> Http.getArray<OrganizationsModel, Organization> send context (fun model -> model.organizations)
+        |> getArray send context mapArray
 
     let get send context (id : OrganizationId) =
         sprintf "/api/v2/organizations/%i.json" id
-        |> Http.get<OrganizationModel, Organization> send context (fun model -> model.organization)
+        |> getOne send context mapOne
 
     let tryGet send context id =
         get send context id
@@ -65,4 +70,4 @@ module Organization =
 
     let getByExternalId send context externalId =
         sprintf "/api/v2/organizations/search.json?external_id=%s" externalId
-        |> Http.getArray<OrganizationsModel, Organization> send context (fun model -> model.organizations)
+        |> getArray send context mapArray

@@ -10,10 +10,7 @@ module Result =
             Ok (Some value)
         | Error err ->
             match err with
-            | StatusCode (code, _) ->
-                if code = HttpStatusCode.NotFound then
-                    Ok None
-                else
-                    Error err
+            | StatusCode (code, _) when code = HttpStatusCode.NotFound ->
+                Ok None
             | _ ->
                 Error err
