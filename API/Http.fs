@@ -10,34 +10,47 @@ module Http =
 
     let private client = new HttpClient()
 
-    let private createAuthenticationHeaderValue creds =
-
-        let basicAuthentication parameter =
-            AuthenticationHeaderValue("Basic", parameter)
-
-        let createAuthenticationHeaderValue (format : string) (first : string) (second : string) =
-            System.String.Format(format, first, second)
-            |> Encoding.UTF8.GetBytes
-            |> System.Convert.ToBase64String
-            |> basicAuthentication
-
-        match creds with
-        | UsernamePassword creds ->
-            createAuthenticationHeaderValue "{0}:{1}" creds.Username creds.Password
-        | UsernameToken creds ->
-            createAuthenticationHeaderValue "{0}/token:{1}" creds.Username creds.Token
-
     let private authorization context (request : HttpRequestMessage) =
-        request.Headers.Authorization <- createAuthenticationHeaderValue context.Credentials
+
+        let authentication creds =
+
+            let basicAuthentication parameter =
+                AuthenticationHeaderValue("Basic", parameter)
+
+            let authentication (format : string) (first : string) (second : string) =
+                System.String.Format(format, first, second)
+                |> Encoding.UTF8.GetBytes
+                |> System.Convert.ToBase64String
+                |> basicAuthentication
+
+            match creds with
+            | UsernamePassword creds ->
+                authentication "{0}:{1}" creds.Username creds.Password
+            | UsernameToken creds ->
+                authentication "{0}/token:{1}" creds.Username creds.Token
+
+        request.Headers.Authorization <- authentication context.Credentials
         request
 
-    let private createRequest httpMethod (requestUri : System.Uri) =
-        new HttpRequestMessage(httpMethod, requestUri)
+    let private content obj (request : HttpRequestMessage) =
+        let json = Json.serialize obj
+        let content = new StringContent(json, Encoding.UTF8, "application/json")
 
-    let private createGetRequest context (requestUri : string) =
-        System.Uri(context.BaseUrl, requestUri)
-        |> createRequest HttpMethod.Get
+        request.Content <- content
+        request
+
+    let private request httpMethod (requestUri : string) context =
+        let uri = System.Uri(context.BaseUrl, requestUri)
+
+        new HttpRequestMessage(httpMethod, uri)
         |> authorization context
+
+    let private GET uri context =
+        request HttpMethod.Get uri context
+
+    let private POST uri context obj =
+        request HttpMethod.Post uri context
+        |> content obj
 
     let send context createRequest =
         let request = createRequest context
@@ -130,7 +143,7 @@ module Http =
 
         let createRequest : CreateRequest =
             fun ctx ->
-                createGetRequest ctx requestUri
+                GET requestUri ctx
 
         send context createRequest
         |> Result.bind parse<'a>
@@ -141,7 +154,7 @@ module Http =
         let rec get requestUri' acc =
             let createRequest : CreateRequest =
                 fun ctx ->
-                    createGetRequest ctx requestUri'
+                    GET requestUri' ctx
 
             let result =
                 send context createRequest
@@ -159,3 +172,25 @@ module Http =
                     get page.next_page acc'
 
         get requestUri [||]
+
+    let post<'a, 'b> (send : HttpSend) context obj (inner : 'a -> 'b) requestUri =
+
+        let createRequest : CreateRequest =
+            fun ctx ->
+                request HttpMethod.Post requestUri ctx
+                |> content obj
+
+        send context createRequest
+        |> Result.bind parse<'a>
+        |> Result.map inner
+
+    let put<'a, 'b> (send : HttpSend) context obj (inner : 'a -> 'b) requestUri =
+
+        let createRequest : CreateRequest =
+            fun ctx ->
+                request HttpMethod.Put requestUri ctx
+                |> content obj
+
+        send context createRequest
+        |> Result.bind parse<'a>
+        |> Result.map inner

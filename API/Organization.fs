@@ -40,6 +40,11 @@ type Organization = {
 }
 
 [<NoComparison>]
+type private NewOrganizationModel = {
+    organization : NewOrganization
+}
+
+[<NoComparison>]
 type OrganizationModel = {
     organization : Organization
 }
@@ -88,3 +93,17 @@ module Organization =
             |> Error
         | Error err ->
             Error err
+
+    let post send context (org : NewOrganization) =
+        let model : NewOrganizationModel = {
+            organization = org
+        }
+        "/api/v2/organizations.json"
+        |> Http.post<OrganizationModel, Organization> send context model mapOne
+
+    let put send context org =
+        let model : OrganizationModel = {
+            organization = org
+        }
+        sprintf "/api/v2/organizations/%i.json" org.id
+        |> Http.put<OrganizationModel, Organization> send context model mapOne
