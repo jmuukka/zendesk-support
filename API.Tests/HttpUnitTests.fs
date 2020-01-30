@@ -64,12 +64,13 @@ let getItem (model : ItemModel) = model.item
 
 [<Fact>]
 let ``get returns expected model when send succeeds`` () =
-    let send ctx createReq =
+    let send _ =
         createItemModel 1
         |> createResponse
         |> Ok
+    let command = { Uri = "https://...will be ignored"; Map = getItem }
             
-    let actual = Http.get send context getItem "https://...will be ignored"
+    let actual = Http.get send command context
 
     match actual with
     | Ok item ->
@@ -80,9 +81,10 @@ let ``get returns expected model when send succeeds`` () =
 [<Fact>]
 let ``get returns HTTP NotFound Error when send fails`` () =
     let notFound = StatusCode (HttpStatusCode.NotFound, "this is the content of the response")
-    let send ctx createReq = Error notFound
+    let send _ = Error notFound
+    let command = { Uri = "https://...will be ignored"; Map = getItem }
             
-    let actual = Http.get send context getItem "https://...will be ignored"
+    let actual = Http.get send command context
 
     match actual with
     | Ok _ ->
@@ -98,13 +100,13 @@ let ``get returns ParseError when server returns HTML page`` () =
         // Sometimes they lie that the response is JSON even though it's an HTML error page.
         response.Content <- new StringContent(text, System.Text.Encoding.UTF8, "application/json")
         response
-        
-    let send ctx createReq =
+    let send _ =
         responseText
         |> createResponse
         |> Ok
+    let command = { Uri = "https://...will be ignored"; Map = getItem }
             
-    let actual = Http.get send context getItem "https://...will be ignored"
+    let actual = Http.get send command context
 
     match actual with
     | Ok _ ->
@@ -121,30 +123,30 @@ let ``get returns ParseError when server returns HTML page`` () =
 // ------------------------------------------------------------
 
 let ``arrange for getArray`` () =
+    let getItems (model : ItemsModel) = model.items
     let firstPage = "http://api/"
+    let getCommand = { Uri = firstPage; Map = getItems }
     let nextPages = [firstPage + "?page=2"; firstPage + "?page=3"; null]
     let queue = createQueue nextPages
     let uris = List<string>()
     let send : HttpSend =
-        fun ctx createReq ->
-            let request = createReq ctx
+        fun createReq ->
+            let request = createReq()
             uris.Add(request.RequestUri.AbsoluteUri)
 
             queue.Dequeue()
             |> createResponse
             |> Ok
 
-    firstPage, nextPages, queue, uris, send
+    getCommand, nextPages, queue, uris, send
 
 let getArray = Http.getArray<ItemsModel, Item>
 
-let getItems (model : ItemsModel) = model.items
-
 [<Fact>]
 let ``getArray with many pages then data of all pages received`` () =
-    let firstPage, _, _, _, send = ``arrange for getArray``()
+    let command, _, _, _, send = ``arrange for getArray``()
 
-    let actual = getArray send context getItems firstPage
+    let actual = getArray send command context
 
     match actual with
     | Ok items ->
@@ -154,14 +156,10 @@ let ``getArray with many pages then data of all pages received`` () =
 
 [<Fact>]
 let ``getArray with many pages then pages consumed and expected pages requested`` () =
-    let firstPage, nextPages, queue, uris, send = ``arrange for getArray``()
+    let command, nextPages, queue, uris, send = ``arrange for getArray``()
 
-    getArray send context getItems firstPage
+    getArray send command context
     |> ignore
 
     Assert.equals 0 queue.Count
-    Assert.equals (firstPage :: List.take 2 nextPages) (List.ofSeq uris)
-
-//[<Fact>]
-//let ``send`` () =
-//    ()
+    Assert.equals (command.Uri :: List.take 2 nextPages) (List.ofSeq uris)

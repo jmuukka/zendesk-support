@@ -10,7 +10,7 @@ module Http =
 
     let private client = new HttpClient()
 
-    let private authorization context (request : HttpRequestMessage) =
+    let authorization context (request : HttpRequestMessage) =
 
         let authentication creds =
 
@@ -32,31 +32,41 @@ module Http =
         request.Headers.Authorization <- authentication context.Credentials
         request
 
-    let private content obj (request : HttpRequestMessage) =
-        let json = Json.serialize obj
-        let content = new StringContent(json, Encoding.UTF8, "application/json")
+    let content (content : Content) (request : HttpRequestMessage) =
+        let content = new StringContent(content.Content, Encoding.UTF8, content.ContentType)
 
         request.Content <- content
         request
 
-    let private request httpMethod (requestUri : string) context =
+    let createRequest httpMethod (requestUri : string) context =
         let uri = System.Uri(context.BaseUrl, requestUri)
 
         new HttpRequestMessage(httpMethod, uri)
         |> authorization context
 
-    let private GET uri context =
-        request HttpMethod.Get uri context
+    let read (content : HttpContent) =
+        content.ReadAsStringAsync() // Hopefully the position in the stream is at the beginning when this is called.
+        |> Async.AwaitTask
+        |> Async.RunSynchronously
 
-    let private POST uri context obj =
-        request HttpMethod.Post uri context
-        |> content obj
+    let deserialize<'t> (content : string) =
+        let result = Json.deserialize<'t> content
 
-    let send context createRequest =
-        let request = createRequest context
+        match result with
+        | Ok value -> Ok value
+        | Error (json, ex) -> Error (ParseError (json, ex))
 
+    let parse<'t> (response : HttpResponseMessage) =
+        let content = read response.Content
+        if response.IsSuccessStatusCode then
+            deserialize<'t> content
+        else
+            Error (StatusCode (response.StatusCode, content))
+
+    let send (createRequest : CreateRequest) =
         try
-            client.SendAsync(request)
+            createRequest()
+            |> client.SendAsync
             |> Async.AwaitTask
             |> Async.RunSynchronously
             |> Ok
@@ -64,9 +74,9 @@ module Http =
             | ex ->
                 Error (Exception ex)
 
-    let sendWithRetryWhenTooManyRequests (send : HttpSend) context createRequest =
+    let sendWithRetryWhenTooManyRequests (send : HttpSend) (createRequest : CreateRequest) =
         let rec sendRec tryCount maxCount =
-            let result = send context createRequest
+            let result = send createRequest
             match result with
             | Ok (response : HttpResponseMessage) ->
                 if (int response.StatusCode) <> 429 then
@@ -84,7 +94,7 @@ module Http =
 
         sendRec 1 5
 
-    let sendWithRetry firstWaitTimeInSeconds maxRetryCount (send : HttpSend) context createRequest =
+    let sendWithRetry firstWaitTimeInSeconds maxRetryCount (send : HttpSend) (createRequest : CreateRequest) =
         let shouldFail tryCount maxRetryCount failure =
             let trueWhenShouldNotRetry =
                 tryCount >= maxRetryCount
@@ -107,7 +117,7 @@ module Http =
                 trueWhenShouldNotRetry
 
         let rec sendRec tryCount waitTimeInSeconds =
-            let result = send context createRequest
+            let result = send createRequest
             match result with
             | Ok value ->
                 Ok value
@@ -120,77 +130,69 @@ module Http =
 
         sendRec 1 firstWaitTimeInSeconds
 
-    let private read (content : HttpContent) =
-        content.ReadAsStringAsync() // Hopefully the position in the stream is at the beginning when this is called.
-        |> Async.AwaitTask
-        |> Async.RunSynchronously
+    let get (send : HttpSend) (command : GetCommand<'infra, 'model>) context =
+        fun () ->
+            createRequest HttpMethod.Get command.Uri context
+        |> send
+        |> Result.bind parse<'infra>
+        |> Result.map command.Map
 
-    let private deserialize<'t> (content : string) =
-        let result = Json.deserialize<'t> content
+    let tryGet send command context =
+        get send command context
+        |> Result.mapNotFoundToNone
 
-        match result with
-        | Ok value -> Ok value
-        | Error (json, ex) -> Error (ParseError (json, ex))
-
-    let private parse<'t> (response : HttpResponseMessage) =
-        let content = read response.Content
-        if response.IsSuccessStatusCode then
-            deserialize<'t> content
-        else
-            Error (StatusCode (response.StatusCode, content))
-
-    let get<'a, 'b> (send : HttpSend) context (inner : 'a -> 'b) requestUri =
-
-        let createRequest : CreateRequest =
-            fun ctx ->
-                GET requestUri ctx
-
-        send context createRequest
-        |> Result.bind parse<'a>
-        |> Result.map inner
-
-    let getArray<'a, 'b when 'a :> PagedModel> (send : HttpSend) context (inner : 'a -> 'b array) requestUri =
-
-        let rec get requestUri' acc =
-            let createRequest : CreateRequest =
-                fun ctx ->
-                    GET requestUri' ctx
-
+    let getArray<'infra, 'model when 'infra :> PagedModel> (send : HttpSend) (command : GetCommand<'infra, 'model array>) context : Result<'model array, Failure> =
+        let rec get (cmd : GetCommand<'infra, 'model array>) acc =
             let result =
-                send context createRequest
-                |> Result.bind parse<'a>
-
+                fun () ->
+                    createRequest HttpMethod.Get cmd.Uri context
+                |> send
+                |> Result.bind parse<'infra>
             match result with
             | Error err ->
                 Error err
             | Ok page ->
-                let elements = inner page
-                let acc' = Array.append acc elements
+                let elements = cmd.Map page
+                let accumulated = Array.append acc elements
                 if page.next_page = null then
-                    Ok acc'
+                    Ok accumulated
                 else
-                    get page.next_page acc'
+                    let cmd = { cmd with Uri = page.next_page }
+                    get cmd accumulated
+        get command [||]
 
-        get requestUri [||]
+    let tryGetFromArray send (command : GetCommand<'infra, 'model array>) context =
+        let result = get send command context
+        match result with
+        | Ok [||] ->
+            Ok None
+        | Ok [|model|] ->
+            Ok (Some model)
+        | Ok models ->
+            sprintf "Expected zero or one %s. The response contains %i." typeof<'model>.Name models.Length
+            |> CustomError
+            |> Error
+        | Error err ->
+            Error err
 
-    let post<'a, 'b> (send : HttpSend) context obj (inner : 'a -> 'b) requestUri =
+    let post (send : HttpSend) (command : PostCommand<'infra, 'model>) context =
+        fun () ->
+            createRequest HttpMethod.Post command.Uri context
+            |> content command.Content
+        |> send
+        |> Result.bind parse<'infra>
+        |> Result.map command.Map
 
-        let createRequest : CreateRequest =
-            fun ctx ->
-                request HttpMethod.Post requestUri ctx
-                |> content obj
+    let put (send : HttpSend) (command : PutCommand<'infra, 'model>) context =
+        fun () ->
+            createRequest HttpMethod.Put command.Uri context
+            |> content command.Content
+        |> send
+        |> Result.bind parse<'infra>
+        |> Result.map command.Map
 
-        send context createRequest
-        |> Result.bind parse<'a>
-        |> Result.map inner
-
-    let put<'a, 'b> (send : HttpSend) context obj (inner : 'a -> 'b) requestUri =
-
-        let createRequest : CreateRequest =
-            fun ctx ->
-                request HttpMethod.Put requestUri ctx
-                |> content obj
-
-        send context createRequest
-        |> Result.bind parse<'a>
-        |> Result.map inner
+    let delete (send : HttpSend) (command : DeleteCommand) context =
+        fun () ->
+            createRequest HttpMethod.Delete command.Uri context
+        |> send
+        |> Result.map (fun response -> ())
