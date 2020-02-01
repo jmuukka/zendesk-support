@@ -28,7 +28,8 @@ module Organization =
         Command.post organizationsUri newOrganization infraModelForNew mapOne
 
     let put organization =
-        Command.put organizationsUri organization infraModel mapOne
+        let uri = organizationUri organization.id
+        Command.put uri organization infraModel mapOne
 
     let delete id =
         let uri = organizationUri id
