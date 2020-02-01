@@ -80,7 +80,8 @@ let ``get returns expected model when send succeeds`` () =
 
 [<Fact>]
 let ``get returns HTTP NotFound Error when send fails`` () =
-    let notFound = StatusCode (HttpStatusCode.NotFound, "this is the content of the response")
+    let response = new HttpResponseMessage(HttpStatusCode.NotFound)
+    let notFound = ResponseError response
     let send _ = Error notFound
     let command = { Uri = "https://...will be ignored"; Map = getItem }
             
@@ -97,7 +98,6 @@ let ``get returns ParseError when server returns HTML page`` () =
     let responseText = "<html>...</html>"
     let createResponse text =
         let response = new HttpResponseMessage(HttpStatusCode.OK)
-        // Sometimes they lie that the response is JSON even though it's an HTML error page.
         response.Content <- new StringContent(text, System.Text.Encoding.UTF8, "application/json")
         response
     let send _ =

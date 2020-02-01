@@ -29,3 +29,11 @@ let ``get organization by identifier returns Ok`` () =
     let actual = Http.get Http.send getById context
 
     Assert.ok actual
+
+[<Fact>]
+let ``delete unknown organization by identifier returns Ok`` () =
+    let deleteById = Organization.delete Int64.MaxValue
+
+    let actual = Http.delete Http.send deleteById context
+
+    Assert.ok actual

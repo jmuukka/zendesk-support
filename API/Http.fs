@@ -32,8 +32,17 @@ module Http =
         request.Headers.Authorization <- authentication context.Credentials
         request
 
+    let acceptJson (request : HttpRequestMessage) =
+        let jsonMediaType = MediaTypeWithQualityHeaderValue("application/json")
+
+        request.Headers.Accept.Add(jsonMediaType)
+        request
+
     let content (content : Content) (request : HttpRequestMessage) =
-        let content = new StringContent(content.Content, Encoding.UTF8, content.ContentType)
+        let content =
+            match content with
+            | JsonContent (JsonString json) ->
+                new StringContent(json, Encoding.UTF8, "application/json")
 
         request.Content <- content
         request
@@ -45,7 +54,7 @@ module Http =
         |> authorization context
 
     let read (content : HttpContent) =
-        content.ReadAsStringAsync() // Hopefully the position in the stream is at the beginning when this is called.
+        content.ReadAsStringAsync()
         |> Async.AwaitTask
         |> Async.RunSynchronously
 
@@ -58,10 +67,15 @@ module Http =
 
     let parse<'t> (response : HttpResponseMessage) =
         let content = read response.Content
+        deserialize<'t> content
+
+    let mapResponse (response : HttpResponseMessage) =
         if response.IsSuccessStatusCode then
-            deserialize<'t> content
+            Ok response
         else
-            Error (StatusCode (response.StatusCode, content))
+            response
+            |> ResponseError
+            |> Error
 
     let send (createRequest : CreateRequest) =
         try
@@ -69,7 +83,7 @@ module Http =
             |> client.SendAsync
             |> Async.AwaitTask
             |> Async.RunSynchronously
-            |> Ok
+            |> mapResponse
         with
             | ex ->
                 Error (Exception ex)
@@ -100,9 +114,9 @@ module Http =
                 tryCount >= maxRetryCount
 
             match failure with
-            | StatusCode (code, _) when code >= HttpStatusCode.InternalServerError ->
+            | ResponseError response when response.StatusCode >= HttpStatusCode.InternalServerError ->
                 trueWhenShouldNotRetry
-            | StatusCode _ ->
+            | ResponseError _ ->
                 // HttpStatusCodes less than 500 are considered permanent.
                 // 429 at least is an exception to this, as it instructs to try again after a delay.
                 // Function sendWithRetryWhenTooManyRequests can be used to handle this case.
@@ -133,19 +147,22 @@ module Http =
     let get (send : HttpSend) (command : GetCommand<'infra, 'model>) context =
         fun () ->
             createRequest HttpMethod.Get command.Uri context
+            |> acceptJson
         |> send
         |> Result.bind parse<'infra>
         |> Result.map command.Map
 
+    // TODO we could add get function as parameter so the caller can add functionality to it
     let tryGet send command context =
         get send command context
-        |> Result.mapNotFoundToNone
+        |> Result.mapNotFoundErrorToOkNone
 
     let getArray<'infra, 'model when 'infra :> PagedModel> (send : HttpSend) (command : GetCommand<'infra, 'model array>) context : Result<'model array, Failure> =
         let rec get (cmd : GetCommand<'infra, 'model array>) acc =
             let result =
                 fun () ->
                     createRequest HttpMethod.Get cmd.Uri context
+                    |> acceptJson
                 |> send
                 |> Result.bind parse<'infra>
             match result with
@@ -179,6 +196,7 @@ module Http =
         fun () ->
             createRequest HttpMethod.Post command.Uri context
             |> content command.Content
+            |> acceptJson
         |> send
         |> Result.bind parse<'infra>
         |> Result.map command.Map
@@ -187,6 +205,7 @@ module Http =
         fun () ->
             createRequest HttpMethod.Put command.Uri context
             |> content command.Content
+            |> acceptJson
         |> send
         |> Result.bind parse<'infra>
         |> Result.map command.Map
@@ -195,4 +214,5 @@ module Http =
         fun () ->
             createRequest HttpMethod.Delete command.Uri context
         |> send
+        |> Result.mapNotFoundErrorToOk
         |> Result.map (fun response -> ())

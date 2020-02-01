@@ -26,7 +26,7 @@ type Context = {
 
 [<NoComparison>]
 type Failure =
-| StatusCode of HttpStatusCode * string // The response status code and the content.
+| ResponseError of HttpResponseMessage
 | ParseError of string * exn // The content that we could not parse and an exception.
 | CustomError of string
 | Exception of exn
@@ -40,18 +40,15 @@ type PagedModel() =
     member val previous_page : string = null with get, set
     member val count : int = 0 with get, set
 
-type Content = {
-    ContentType : string
-    Content : string
-}
+type JsonString = JsonString of string
 
-module Content =
+type Content =
+| JsonContent of JsonString
 
-    let json obj =
-        {
-            ContentType = "application/json"
-            Content = Json.serialize obj
-        }
+module JsonString =
+    let create obj =
+        Json.serialize obj
+        |> JsonString
 
 type DeleteCommand = {
     Uri : string
@@ -59,50 +56,56 @@ type DeleteCommand = {
 
 [<NoComparison>]
 [<NoEquality>]
-type GetCommand<'infraModel, 'model> = {
+type GetCommand<'infra, 'model> = {
     Uri : string
-    Map : 'infraModel -> 'model
+    Map : 'infra -> 'model
 }
 
 [<NoComparison>]
 [<NoEquality>]
-type PostCommand<'infraModel, 'model> = {
+type PostCommand<'infra, 'model> = {
     Uri : string
-    Map : 'infraModel -> 'model
+    Map : 'infra -> 'model
     Content : Content
 }
 
 [<NoComparison>]
 [<NoEquality>]
-type PutCommand<'infraModel, 'model> = {
+type PutCommand<'infra, 'model> = {
     Uri : string
-    Map : 'infraModel -> 'model
+    Map : 'infra -> 'model
     Content : Content
 }
 
-module Request =
+module Command =
 
-    let get (uri : string) (mapFromInfra : 'infra -> 'model) : GetCommand<'infra, 'model> =
+    let private jsonContent model map =
+        model
+        |> map
+        |> JsonString.create
+        |> JsonContent
+
+    let get uri map : GetCommand<'infra, 'model> =
         {
             Uri = uri
+            Map = map
+        }
+
+    let post uri (model : 'newmodel) (mapToInfra : 'newmodel -> 'newinfra) (mapFromInfra : 'infra -> 'model) : PostCommand<'infra, 'model> =
+        {
+            Uri = uri
+            Content = jsonContent model mapToInfra
             Map = mapFromInfra
         }
 
-    let post (uri : string) (model : 'newmodel) (mapToInfra : 'newmodel -> 'newinfra) (mapFromInfra : 'infra -> 'model) : PostCommand<'infra, 'model> =
+    let put uri model (mapToInfra : 'model -> 'infra) (mapFromInfra : 'infra -> 'model) : PutCommand<'infra, 'model> =
         {
             Uri = uri
-            Content = Content.json (mapToInfra model)
+            Content = jsonContent model mapToInfra
             Map = mapFromInfra
         }
 
-    let put (uri : string) (model : 'model) (mapToInfra : 'model -> 'infra) (mapFromInfra : 'infra -> 'model) : PutCommand<'infra, 'model> =
-        {
-            Uri = uri
-            Content = Content.json (mapToInfra model)
-            Map = mapFromInfra
-        }
-
-    let delete (uri : string) : DeleteCommand =
+    let delete uri : DeleteCommand =
         {
             Uri = uri
         }
