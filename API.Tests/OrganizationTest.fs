@@ -3,14 +3,7 @@
 open System
 open Mutex.Zendesk.Support.API
 
-let context =
-    {
-        BaseUrl = Uri("https://XXXXXXXXXX.zendesk.com", UriKind.Absolute)
-        Credentials = UsernameToken {
-            Username = "XXXXXXXXXX@XXXXXXXXXX.XXXXXXXXXX"
-            Token = "XXXXXXXXXX"
-        }
-    }
+let context = Configuration.context
 
 open System.Net
 open Xunit
@@ -24,7 +17,7 @@ let ``getAll organizations returns Ok`` () =
 
 [<Fact>]
 let ``get organization by identifier returns Ok`` () =
-    let getById = Organization.get 0000000000L
+    let getById = Organization.get Configuration.existingOrganizationId
 
     let actual = Http.get Http.send getById context
 

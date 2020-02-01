@@ -1,7 +1,6 @@
 ﻿namespace Mutex.Zendesk.Support.API
 
 open System
-open System.Net
 open System.Net.Http
 
 type UsernamePasswordCredentials = {

@@ -3,3 +3,4 @@ obj
 *.cache
 *.user
 .vs
+API.Tests/Configuration.json
