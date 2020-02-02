@@ -12,7 +12,7 @@ When you delete an entity that does not exist (or has already been deleted) then
 
 Zendesk's models contain an infrastructure model around the actual model. You can see this in the models (see XxxxxxTypes.fs files). In the program you will use the actual model.
 
-The API has at least two models for each entity. The normal one contains all fields that the entity returns from the Zendesk. That type is used in PUT, even though there are usually fields taht the Zendesk will ignore as they are read-only. For POST the API contains NewXxxxx type that only includes fields that you can control.
+The API has at least two models for each entity. The normal one contains all fields that the entity returns from the Zendesk. That type is used in PUT, even though there are usually fields that the Zendesk will ignore as they are read-only. For POST the API contains NewXxxxx type that only includes fields that you can control.
 
 The Http.getArray function operates on PagedModel types and will request all entities in a recursive loop until the last page has been retrieved. If you use Http.get for PagedModel then paging is not used.
 
