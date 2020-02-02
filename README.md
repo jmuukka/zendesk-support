@@ -22,6 +22,7 @@ Each function uses a railway-oriented programming pattern, and in practice each 
 
 ## Using the API
 
+<pre>
 let context =
     {
         BaseUrl = Uri("https://???.zendesk.com", UriKind.Absolute)
@@ -32,6 +33,7 @@ let context =
     }
 
 let result = Http.getArray Http.send Organization.getAll context
+</pre>
 
 ------
 
