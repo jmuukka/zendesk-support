@@ -8,9 +8,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Compile Include="Configuration.fs" />
-    <Content Include="Configuration.json" />
     <Content Include="ConfigurationTemplate.json" />
+    <Content Include="Configuration.json" />
+    <Compile Include="Configuration.fs" />
     <Compile Include="Assert.fs" />
     <Compile Include="HttpUnitTests.fs" />
     <Compile Include="OrganizationTest.fs" />
