@@ -6,7 +6,7 @@ module Organization =
     let mapOne (model : OrganizationModel) = model.organization
     let mapArray (model : OrganizationsModel) = model.organizations
 
-    let infraModelForNew (org : NewOrganization) : NewOrganizationModel = { organization = org }
+    let infraModelForNew org : NewOrganizationModel = { organization = org }
     let infraModel org = { organization = org }
 
     let organizationsUri = "/api/v2/organizations.json"

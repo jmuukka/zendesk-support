@@ -23,14 +23,14 @@ type NewOrganization = {
 
 [<NoComparison>]
 type Organization = {
-    url : string
-    id : OrganizationId
+    url : string // read-only
+    id : OrganizationId // read-only
     name : string
     shared_tickets : bool
     shared_comments : bool
     external_id : ExternalId // May be null.
-    created_at : DateTime
-    updated_at : DateTime
+    created_at : DateTime // read-only
+    updated_at : DateTime // read-only
     domain_names : string array // May be null.
     details : string // May be null.
     notes : string // May be null.
@@ -48,6 +48,11 @@ type NewOrganizationModel = {
 type OrganizationModel = {
     organization : Organization
 }
+
+//[<NoComparison>]
+//type OrganizationModel<'t> = {
+//    organization : 't
+//}
 
 type OrganizationsModel() =
     inherit PagedModel()
