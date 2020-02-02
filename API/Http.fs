@@ -66,8 +66,8 @@ module Http =
         | Error (json, ex) -> Error (ParseError (json, ex))
 
     let parse<'t> (response : HttpResponseMessage) =
-        let content = read response.Content
-        deserialize<'t> content
+        read response.Content
+        |> deserialize<'t>
 
     let mapResponse (response : HttpResponseMessage) =
         if response.IsSuccessStatusCode then
