@@ -14,11 +14,11 @@ Zendesk's models contain an infrastructure model around the actual model. You ca
 
 The API has at least two models for each entity. The normal one contains all fields that the entity returns from the Zendesk. That type is used in PUT, even though there are usually fields that the Zendesk will ignore as they are read-only. For POST the API contains NewXxxxx type that only includes fields that you can control.
 
-The Http.getArray function operates on PagedModel types and will request all entities in a recursive loop until the last page has been retrieved. If you use Http.get for PagedModel then paging is not used.
+The Zendesk.getArray function operates on PagedModel types and will request all entities in a recursive loop until the last page has been retrieved. If you use Zendesk.get for PagedModel then paging is not used.
 
 Http module has multiple functions to handle send. You can compose them to form a send function which you want to use.
 
-Each business entity related module contains functions to compose a command in a declarative way. That command is used as a parameter to methods in Http module.
+Each business entity related module contains functions to compose a command in a declarative way. That command is used as a parameter to methods in Zendesk module.
 
 Each function uses a railway-oriented programming pattern, and in practice each function returns a Result<'a, Failure> type.
 
@@ -34,7 +34,7 @@ let context =
         }
     }
 
-let result = Http.getArray Http.send Organization.getAll context
+let result = Zendesk.getArray Http.send Organization.getAll context
 </pre>
 
 ------

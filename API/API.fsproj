@@ -32,6 +32,8 @@
     <Compile Include="OrganizationModule.fs" />
     <Compile Include="Http.fsi" />
     <Compile Include="Http.fs" />
+    <Compile Include="Zendesk.fsi" />
+    <Compile Include="Zendesk.fs" />
   </ItemGroup>
 
   <ItemGroup>

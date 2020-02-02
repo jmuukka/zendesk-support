@@ -1,4 +1,4 @@
-module HttpUnitTests
+module ZendeskUnitTests
 
 open System
 open System.Collections.Generic
@@ -70,7 +70,7 @@ let ``get returns expected model when send succeeds`` () =
         |> Ok
     let command = { Uri = "https://...will be ignored"; Map = getItem }
             
-    let actual = Http.get send command context
+    let actual = Zendesk.get send command context
 
     match actual with
     | Ok item ->
@@ -85,7 +85,7 @@ let ``get returns HTTP NotFound Error when send fails`` () =
     let send _ = Error notFound
     let command = { Uri = "https://...will be ignored"; Map = getItem }
             
-    let actual = Http.get send command context
+    let actual = Zendesk.get send command context
 
     match actual with
     | Ok _ ->
@@ -106,7 +106,7 @@ let ``get returns ParseError when server returns HTML page`` () =
         |> Ok
     let command = { Uri = "https://...will be ignored"; Map = getItem }
             
-    let actual = Http.get send command context
+    let actual = Zendesk.get send command context
 
     match actual with
     | Ok _ ->
@@ -140,7 +140,7 @@ let ``arrange for getArray`` () =
 
     getCommand, nextPages, queue, uris, send
 
-let getArray = Http.getArray<ItemsModel, Item>
+let getArray = Zendesk.getArray<ItemsModel, Item>
 
 [<Fact>]
 let ``getArray with many pages then data of all pages received`` () =
