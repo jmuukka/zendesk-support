@@ -6,11 +6,13 @@ This package contains limited features of Zendesk Support API, implemented in F#
 
 ## About Zendesk Support API
 
-PUT works like PATCH. When the request does not contain the field then it will not be affected. This feature is not used at the moment.
+Zendesk's PUT works like PATCH. When the request does not contain the field then it will not be affected. This feature is not used at the moment.
 
 When you delete an entity that does not exist (or has already been deleted) then the response is Not found (404). For this reason the API does treat this situation as success.
 
 Zendesk's models contain an infrastructure model around the actual model. You can see this in the models (see XxxxxxTypes.fs files). In the program you will use the actual model.
+
+The API has at least two models for each entity. The normal one contains all fields that the entity returns from the Zendesk. That type is used in PUT, even though there are usually fields taht the Zendesk will ignore as they are read-only. For POST the API contains NewXxxxx type that only includes fields that you can control.
 
 The Http.getArray function operates on PagedModel types and will request all entities in a recursive loop until the last page has been retrieved. If you use Http.get for PagedModel then paging is not used.
 
