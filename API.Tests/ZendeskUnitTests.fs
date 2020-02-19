@@ -70,7 +70,7 @@ let ``get returns expected model when send succeeds`` () =
         |> Ok
     let command = { Uri = "https://...will be ignored"; Map = getItem }
             
-    let actual = Zendesk.get send command context
+    let actual = Zendesk.get send context command
 
     match actual with
     | Ok item ->
@@ -85,7 +85,7 @@ let ``get returns HTTP NotFound Error when send fails`` () =
     let send _ = Error notFound
     let command = { Uri = "https://...will be ignored"; Map = getItem }
             
-    let actual = Zendesk.get send command context
+    let actual = Zendesk.get send context command
 
     match actual with
     | Ok _ ->
@@ -106,7 +106,7 @@ let ``get returns ParseError when server returns HTML page`` () =
         |> Ok
     let command = { Uri = "https://...will be ignored"; Map = getItem }
             
-    let actual = Zendesk.get send command context
+    let actual = Zendesk.get send context command
 
     match actual with
     | Ok _ ->
@@ -146,7 +146,7 @@ let getArray = Zendesk.getArray<ItemsModel, Item>
 let ``getArray with many pages then data of all pages received`` () =
     let command, _, _, _, send = ``arrange for getArray``()
 
-    let actual = getArray send command context
+    let actual = getArray send context command
 
     match actual with
     | Ok items ->
@@ -158,7 +158,7 @@ let ``getArray with many pages then data of all pages received`` () =
 let ``getArray with many pages then pages consumed and expected pages requested`` () =
     let command, nextPages, queue, uris, send = ``arrange for getArray``()
 
-    getArray send command context
+    getArray send context command
     |> ignore
 
     Assert.equals 0 queue.Count

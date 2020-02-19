@@ -10,7 +10,7 @@ let context = Configuration.context
 [<Fact>]
 let ``getAll organizations returns Ok`` () =
 
-    let actual = Zendesk.getArray Http.send Organization.getAll context
+    let actual = Zendesk.getArray Http.send context Organization.getAll
 
     Assert.ok actual
 
@@ -18,7 +18,7 @@ let ``getAll organizations returns Ok`` () =
 let ``get organization by identifier returns Ok`` () =
     let getById = Organization.get Configuration.existingOrganizationId
 
-    let actual = Zendesk.get Http.send getById context
+    let actual = Zendesk.get Http.send context getById
 
     Assert.ok actual
 
@@ -26,6 +26,6 @@ let ``get organization by identifier returns Ok`` () =
 let ``delete unknown organization by identifier returns Ok`` () =
     let deleteById = Organization.delete Int64.MaxValue
 
-    let actual = Zendesk.delete Http.send deleteById context
+    let actual = Zendesk.delete Http.send context deleteById
 
     Assert.ok actual
