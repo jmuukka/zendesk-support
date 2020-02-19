@@ -4,7 +4,7 @@
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyName>Mutex.Zendesk.Support.API</AssemblyName>
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-    <Version>0.1.0</Version>
+    <Version>0.1</Version>
     <Authors>Jarmo Muukka, Mutex Oy</Authors>
     <Company>Mutex Oy</Company>
     <Product>Zendesk Support API</Product>
@@ -13,6 +13,7 @@
     <RepositoryUrl>https://github.com/jmuukka/zendesk-support</RepositoryUrl>
     <PackageProjectUrl>https://github.com/jmuukka/zendesk-support</PackageProjectUrl>
     <PackageTags>Zendesk F# fsharp</PackageTags>
+    <Description>This package contains easy to use functions for accessing Zendesk Support API.</Description>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
