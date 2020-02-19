@@ -76,4 +76,4 @@ module Zendesk =
             Http.createRequest HttpMethod.Delete command.Uri context
         |> send
         |> Result.mapNotFoundErrorToOk
-        |> Result.map (fun response -> ())
+        |> Result.map ignore
